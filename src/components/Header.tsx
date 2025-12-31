@@ -1,16 +1,28 @@
-import { useState, useEffect } from 'react';
-import { ShoppingCart, Menu as MenuIcon, X, Clock } from 'lucide-react';
+import { useState, useEffect, forwardRef } from 'react';
+import { ShoppingCart, Menu as MenuIcon, X, User } from 'lucide-react';
+
+import { useCustomerAuth } from '../contexts/CustomerAuthContext';
+import { AuthModal } from './AuthModal';
 
 interface HeaderProps {
   cartItemCount: number;
   onCartToggle: () => void;
+  onProfileToggle: () => void;
 }
 
-const Header = ({ cartItemCount, onCartToggle }: HeaderProps) => {
+const Header = ({ cartItemCount, onCartToggle, onProfileToggle }: HeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isOrderProgressOpen, setIsOrderProgressOpen] = useState(false);
-  const [estimatedTime] = useState(25); // Default estimated time
+  const { user } = useCustomerAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const handleProfileClick = () => {
+    if (user) {
+      onProfileToggle();
+    } else {
+      setIsAuthModalOpen(true);
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -30,11 +42,10 @@ const Header = ({ cartItemCount, onCartToggle }: HeaderProps) => {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${
-          isScrolled
-            ? 'bg-gray-900/95 backdrop-blur-lg border-b border-gray-800/50 shadow-2xl'
-            : 'bg-transparent'
-        }`}
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${isScrolled
+          ? 'bg-gray-900/95 backdrop-blur-lg border-b border-gray-800/50 shadow-2xl'
+          : 'bg-transparent'
+          }`}
       >
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-20">
@@ -61,6 +72,19 @@ const Header = ({ cartItemCount, onCartToggle }: HeaderProps) => {
 
             {/* Actions */}
             <div className="flex items-center gap-4">
+              {/* Profile Button */}
+              <button
+                onClick={handleProfileClick}
+                className={`p-3 rounded-xl transition-all duration-300 hover:scale-105 border flex items-center gap-2 ${user
+                  ? 'bg-yellow-500/10 border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20'
+                  : 'bg-gray-800/50 border-gray-700 text-gray-300 hover:bg-gray-700/50'
+                  }`}
+                title={user ? "Minha Conta" : "Fazer Login"}
+              >
+                <User className="w-5 h-5" />
+                {user && <span className="text-sm font-medium hidden md:inline">{user.user_metadata?.name?.split(' ')[0] || 'Perfil'}</span>}
+              </button>
+
               {/* Cart Button */}
               <button
                 onClick={onCartToggle}
@@ -74,15 +98,6 @@ const Header = ({ cartItemCount, onCartToggle }: HeaderProps) => {
                 )}
               </button>
 
-              {/* Order Progress Button */}
-              <button
-                onClick={() => setIsOrderProgressOpen(true)}
-                className="p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-xl transition-all duration-300 hover:scale-105 border border-gray-700 hover:border-yellow-500/50 flex items-center gap-1"
-                title="Ver progresso do pedido"
-              >
-                <Clock className="w-5 h-5 text-gray-300" />
-                <span className="text-gray-300 hidden md:inline">Progresso</span>
-              </button>
 
               {/* Mobile Menu Button */}
               <button
@@ -117,6 +132,13 @@ const Header = ({ cartItemCount, onCartToggle }: HeaderProps) => {
           )}
         </div>
       </header>
+
+
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </>
   );
 };

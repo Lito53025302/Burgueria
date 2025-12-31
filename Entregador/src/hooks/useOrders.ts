@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { Order } from '../lib/supabase';
+import { logger } from '../utils/logger';
+import { playNotificationSound, startAlarm, stopAlarm } from '../utils/audio';
 
 export const useOrders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -8,6 +10,8 @@ export const useOrders = () => {
   const [updating, setUpdating] = useState(false);
   const [currentDelivery, setCurrentDelivery] = useState<Order | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isRinging, setIsRinging] = useState(false);
+  const prevOrdersRef = import.meta.env.VITE_NO_REF_CHECK ? { current: [] as Order[] } : useMemo(() => ({ current: [] as Order[] }), []); // Ref estável
 
   // Pega o ID do entregador logado
   useEffect(() => {
@@ -24,12 +28,40 @@ export const useOrders = () => {
         .from('orders')
         .select('*');
       if (error) throw error;
-      setOrders(data || []);
+
+      const newOrders = data || [];
+
+      // Verificação de Som no Polling (Fallback Robusto)
+      if (!showLoading && prevOrdersRef.current.length > 0) {
+        const hasNewPickup = newOrders.some(newOrder => {
+          const oldOrder = prevOrdersRef.current.find(o => o.id === newOrder.id);
+          // Se o pedido é novo nessa lista OU mudou de status para awaiting_pickup, E não tem motoboy
+          const isFresh = !oldOrder || oldOrder.status !== 'awaiting_pickup';
+          return newOrder.status === 'awaiting_pickup' && !newOrder.motoboy_id && isFresh;
+        });
+
+        if (hasNewPickup) {
+          console.log("🔔 ALERTA VIA POLLING (Fallback)!");
+          startAlarm();
+          setIsRinging(true);
+        }
+      }
+
+      // Para o alarme automaticamente se não houver mais pedidos pendentes (ex: alguém pegou)
+      const pendingCount = newOrders.filter(o => o.status === 'awaiting_pickup' && !o.motoboy_id).length;
+      if (pendingCount === 0 && isRinging) {
+        stopAlarm();
+        setIsRinging(false);
+      }
+
+      prevOrdersRef.current = newOrders;
+      setOrders(newOrders);
+
       // Mostra entrega atual só se for do entregador logado
-      const delivery = data?.find(order => order.status === 'in_transit' && order.motoboy_id === userId);
+      const delivery = newOrders.find(order => order.status === 'in_transit' && order.motoboy_id === userId);
       setCurrentDelivery(delivery || null);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      logger.error('Error fetching orders', error);
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -38,20 +70,38 @@ export const useOrders = () => {
   useEffect(() => {
     // Primeira busca mostra loading
     fetchOrders(true);
+
+
+
     const subscription = supabase
       .channel('public:orders')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
-        () => {
+        (payload) => {
+          logger.info('Atualização realtime recebida', { event: payload.eventType });
+          console.log("🔥 Payload Realtime:", payload);
+
+          // Toca som se for um novo pedido aguardando coleta
+          const newOrder = payload.new as any;
+          console.log("🔍 Check Som:", { status: newOrder?.status, motoboy_id: newOrder?.motoboy_id });
+
+          if (newOrder && newOrder.status === 'awaiting_pickup' && !newOrder.motoboy_id) {
+            console.log("🔔 CONDICAO ACEITA! TOCANDO SOM...");
+            startAlarm();
+            setIsRinging(true);
+          }
+
           fetchOrders(false);
         }
       )
       .subscribe();
+
     // Atualização periódica (fallback)
     const interval = setInterval(() => {
       fetchOrders(false);
-    }, 2500); // Atualiza a cada 2,5 segundos
+    }, 10000); // Atualiza a cada 10 segundos (fallback)
+
     return () => {
       supabase.removeChannel(subscription);
       clearInterval(interval);
@@ -125,5 +175,10 @@ export const useOrders = () => {
     return orders.filter(order => order.status === 'awaiting_pickup' && !order.motoboy_id);
   }, [orders]);
 
-  return { availableOrders, currentDelivery, loading, updating, collectOrder, markArrived, completeDelivery };
+  const silenceAlarm = () => {
+    stopAlarm();
+    setIsRinging(false);
+  };
+
+  return { availableOrders, currentDelivery, loading, updating, collectOrder, markArrived, completeDelivery, isRinging, silenceAlarm };
 };

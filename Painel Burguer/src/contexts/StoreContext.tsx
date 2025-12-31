@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { MenuItem, Order, DashboardStats, StoreStatus } from '../types';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 
 interface StoreContextType {
   menuItems: MenuItem[];
@@ -100,7 +101,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const updateMenuItem = (id: string, updates: Partial<MenuItem>) => {
-    setMenuItems(prev => prev.map(item => 
+    setMenuItems(prev => prev.map(item =>
       item.id === id ? { ...item, ...updates } : item
     ));
   };
@@ -110,22 +111,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const updateOrderStatus = async (id: string, status: Order['status']) => {
-    console.log('Atualizando status do pedido:', id, 'para', status); // <-- debug
+    logger.debug('Atualizando status do pedido', { orderId: id, newStatus: status });
     // Atualiza no Supabase
     const { error } = await supabase
       .from('orders')
       .update({ status })
       .eq('id', id);
     if (error) {
-      console.error('Erro ao atualizar status do pedido:', error);
+      logger.error('Erro ao atualizar status do pedido', error);
       alert('Erro ao atualizar status do pedido.');
       return;
     }
     // Atualiza no estado local
-    setOrders(prev => prev.map(order => 
+    setOrders(prev => prev.map(order =>
       order.id === id ? { ...order, status } : order
     ));
-    console.log('Status atualizado com sucesso!'); // <-- debug
+    logger.info('Status do pedido atualizado com sucesso', { orderId: id, status });
   };
 
   const toggleStoreStatus = () => {
@@ -159,10 +160,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const totalRevenue = orders
       .filter(order => order.status === 'delivered')
       .reduce((sum, order) => sum + order.total, 0);
-    
+
     const completedOrders = orders.filter(order => order.status === 'delivered').length;
     const cancelledOrders = orders.filter(order => order.status === 'cancelled').length;
-    
+
     setDashboardStats(prev => ({
       ...prev,
       totalRevenue,
@@ -181,7 +182,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     async function fetchOrders() {
       const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
       if (error) {
-        console.error('Erro ao buscar pedidos do Supabase:', error);
+        logger.error('Erro ao buscar pedidos do Supabase', error);
         return;
       }
       // Mapeamento dos campos do Supabase para o formato esperado pelo frontend
@@ -205,11 +206,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     fetchOrders();
     // Polling: busca pedidos a cada 3 segundos
-    intervalId = setInterval(fetchOrders, 3000);
-    // Opcional: subscribe realtime para atualizar automaticamente
-    const channel = supabase.channel('public:orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchOrders)
-      .subscribe();
+    // Polling: busca pedidos a cada 10 segundos (fallback)
+    intervalId = setInterval(fetchOrders, 10000);
+
+    // Subscribe realtime para atualizar automaticamente
+    const channel = supabase.channel('order-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders'
+        },
+        (payload) => {
+          logger.info('Atualização realtime recebida', { event: payload.eventType });
+          fetchOrders();
+        }
+      )
+      .subscribe((status) => {
+        logger.debug('Status da conexão Realtime', { status });
+      });
+
     return () => {
       clearInterval(intervalId);
       supabase.removeChannel(channel);

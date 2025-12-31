@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Utensils, ChefHat, Bike } from 'lucide-react';
+import { Utensils, ChefHat, Bike, MapPin } from 'lucide-react';
 import { useOrderStatus } from '../hooks/useOrderStatus';
 
 
@@ -17,6 +17,7 @@ const statusToStep = (status: string | undefined) => {
     case 'preparing':
       return 1;
     case 'ready':
+    case 'awaiting_pickup':
       return 2;
     case 'in_transit':
     case 'delivered':
@@ -30,6 +31,8 @@ const OrderProgress = ({ isOpen, onClose, estimatedTime, orderId }: OrderProgres
   const [timeLeft, setTimeLeft] = useState(estimatedTime);
   const { order, loading } = useOrderStatus(orderId || null);
   const currentStep = statusToStep(order?.status);
+
+  const isArrived = order?.motoboy_arrived;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -56,19 +59,25 @@ const OrderProgress = ({ isOpen, onClose, estimatedTime, orderId }: OrderProgres
     },
     {
       icon: Utensils,
-      title: 'Finalizando',
-      description: 'Adicionando os últimos toques especiais',
+      title: order?.status === 'awaiting_pickup' ? 'Aguardando Coleta' : 'Finalizando',
+      description: order?.status === 'awaiting_pickup' ? 'Seu pedido está pronto aguardando o entregador' : 'Adicionando os últimos toques especiais',
     },
     {
-      icon: Bike,
-      title: 'Saiu para Entrega',
-      description: 'Seu pedido está a caminho',
+      icon: isArrived ? MapPin : Bike,
+      title: isArrived ? 'O MOTOBOY CHEGOU!' : 'Saiu para Entrega',
+      description: isArrived ? 'Seu pedido está na sua porta!' : 'Seu pedido está a caminho',
     },
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 rounded-3xl p-8 max-w-md w-full text-center border border-gray-800">
+    <div
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gray-900 rounded-3xl p-8 max-w-md w-full text-center border border-gray-800"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-8">
           <div className="relative h-2 bg-gray-800 rounded-full overflow-hidden">
             <div
@@ -89,20 +98,17 @@ const OrderProgress = ({ isOpen, onClose, estimatedTime, orderId }: OrderProgres
             return (
               <div
                 key={index}
-                className={`flex items-center gap-4 p-4 rounded-xl transition-all duration-300 ${
-                  isActive ? 'bg-yellow-500/10 border border-yellow-500' :
+                className={`flex items-center gap-4 p-4 rounded-xl transition-all duration-300 ${isActive ? 'bg-yellow-500/10 border border-yellow-500' :
                   isCompleted ? 'opacity-50' : 'opacity-30'
-                }`}
+                  }`}
               >
-                <div className={`p-3 rounded-xl ${
-                  isActive ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-gray-400'
-                }`}>
+                <div className={`p-3 rounded-xl ${isActive ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-gray-400'
+                  }`}>
                   <Icon className="w-6 h-6" />
                 </div>
                 <div className="text-left">
-                  <h3 className={`font-bold ${
-                    isActive ? 'text-yellow-400' : 'text-gray-400'
-                  }`}>
+                  <h3 className={`font-bold ${isActive ? 'text-yellow-400' : 'text-gray-400'
+                    }`}>
                     {step.title}
                   </h3>
                   <p className="text-sm text-gray-400">

@@ -7,12 +7,25 @@
     animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
+  .animate-pulse-green {
+    animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
   @keyframes pulse-red {
     0%, 100% {
       background-color: white;
     }
     50% {
       background-color: #fee2e2; /* Tailwind's red-100 */
+    }
+  }
+
+  @keyframes pulse-green {
+    0%, 100% {
+      background-color: white;
+    }
+    50% {
+      background-color: #dcfce7; /* Tailwind's green-100 */
     }
   }
 }

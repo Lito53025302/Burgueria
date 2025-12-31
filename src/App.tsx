@@ -12,9 +12,13 @@ import Contact from './components/Contact';
 import RewardFloatingButton from './components/RewardFloatingButton';
 import { PWAInstallButton } from './components/PWAInstall';
 import PWAInstaller from './components/PWAInstaller';
-import SnakeGame from './components/SnakeGame';
+import ContadorGame from './components/ContadorGame';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+import UserProfile from './components/UserProfile';
 
 function MainLayout() {
+
   const {
     cartItems,
     addToCart,
@@ -29,36 +33,50 @@ function MainLayout() {
 
   const {
     userRewards,
-    addPurchase
+    addPurchase,
+    redeemReward
   } = useRewards();
 
-  const [isSnakeGameOpen, setIsSnakeGameOpen] = useState(false);
+  const [isContadorGameOpen, setIsContadorGameOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   // Detectar parâmetros da URL para ações PWA
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const action = urlParams.get('action');
-    
-    if (action === 'game') {
-      setIsSnakeGameOpen(true);
+
+    if (action === 'game' && userRewards.canSpin) {
+      setIsContadorGameOpen(true);
     } else if (action === 'order') {
       toggleCart();
     }
   }, []);
 
-  const handleOrderComplete = () => {
-    addPurchase(); // Incrementa o contador de compras
-    setIsSnakeGameOpen(true);
+  const handleOrderComplete = (amount: number) => {
+    addPurchase(amount); // Incrementa o contador de compras
+
+    // Abre a tela de meus pedidos para o cliente acompanhar
+    setIsProfileOpen(true);
+
+    // Libera jogo se a compra atual foi > 30
+    if (amount >= 30) {
+      // Pequeno delay para garantir que o perfil renderizou antes do jogo abrir por cima
+      setTimeout(() => setIsContadorGameOpen(true), 300);
+    }
   };
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Header cartItemCount={totalItems} onCartToggle={toggleCart} />
+      <Header
+        cartItemCount={totalItems}
+        onCartToggle={toggleCart}
+        onProfileToggle={() => setIsProfileOpen(true)}
+      />
       <Hero />
       <Menu onAddToCart={addToCart} />
       <About />
       <Contact />
-      
+
       <Cart
         isOpen={isCartOpen}
         onClose={toggleCart}
@@ -70,20 +88,34 @@ function MainLayout() {
         onOrderComplete={handleOrderComplete}
       />
 
-      <RewardFloatingButton
-        userRewards={userRewards}
-        onClick={() => setIsSnakeGameOpen(true)}
+      <UserProfile
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
       />
 
-      <SnakeGame
-        isOpen={isSnakeGameOpen}
-        onClose={() => setIsSnakeGameOpen(false)}
+      <RewardFloatingButton
+        userRewards={userRewards}
+        onClick={() => {
+          if (userRewards.canSpin) setIsContadorGameOpen(true);
+        }}
+        disabled={!userRewards.canSpin}
+      />
+
+      <ContadorGame
+        isOpen={isContadorGameOpen}
+        onClose={() => {
+          setIsContadorGameOpen(false);
+          redeemReward(); // Bloqueia até próxima compra
+        }}
+        canPlay={userRewards.canSpin}
       />
 
       <PWAInstaller />
     </div>
   );
 }
+
+import { AuthProvider } from './contexts/CustomerAuthContext';
 
 function App() {
   const [showIntro, setShowIntro] = useState(true);
@@ -97,12 +129,16 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <PWAInstallButton />
-      <Routes>
-        <Route path="/" element={<MainLayout />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <AuthProvider>
+        <BrowserRouter>
+          <PWAInstallButton />
+          <Routes>
+            <Route path="/" element={<MainLayout />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

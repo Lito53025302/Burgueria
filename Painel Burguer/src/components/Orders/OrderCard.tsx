@@ -31,6 +31,13 @@ export function OrderCard({ order, onStatusChange, maxPrepTime }: OrderCardProps
     return timeDiff > maxPrepTime && order.status !== 'delivered' && order.status !== 'cancelled';
   };
 
+  const isNewOrder = () => {
+    const now = new Date();
+    const orderTime = new Date(order.createdAt);
+    const timeDiff = (now.getTime() - orderTime.getTime()) / (1000 * 60); // minutes
+    return timeDiff <= 3 && order.status === 'pending';
+  };
+
   // Novo: determina se é entrega (tem endereço preenchido)
   const isEntrega = order.address && String(order.address).trim() !== '';
 
@@ -77,9 +84,11 @@ export function OrderCard({ order, onStatusChange, maxPrepTime }: OrderCardProps
   const nextStatus = getNextStatus();
   const nextStatusLabel = getNextStatusLabel();
   const overdue = isOverdue();
+  const isNew = isNewOrder();
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm border-2 transition-all border-gray-200 ${overdue ? 'animate-pulse-red' : ''}`}>
+    <div className={`bg-white rounded-xl shadow-sm border-2 transition-all border-gray-200 
+      ${overdue ? 'animate-pulse-red border-red-300' : isNew ? 'animate-pulse-green border-green-300' : ''}`}>
       <div className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
@@ -107,7 +116,7 @@ export function OrderCard({ order, onStatusChange, maxPrepTime }: OrderCardProps
               </div>
             </div>
           </div>
-          
+
           <div className="text-right">
             {order.status === 'in_transit' && order.motoboy_arrived ? (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
@@ -142,28 +151,35 @@ export function OrderCard({ order, onStatusChange, maxPrepTime }: OrderCardProps
           ))}
         </div>
 
-        <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
-          <div className="flex items-center space-x-1">
-            <MapPin className="h-4 w-4" />
-            <span className="truncate">{formatAddress(order.address)}</span>
+        <div className="space-y-2 mb-4">
+          {/* Endereço */}
+          <div className="flex items-start space-x-2">
+            <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+            <span className="text-xs text-gray-600 line-clamp-2 max-w-md">
+              {formatAddress(order.address)}
+            </span>
           </div>
-          <div className="flex items-center space-x-1">
-            <CreditCard className="h-4 w-4" />
-            <span>{paymentMethodLabels[order.paymentMethod]}</span>
-          </div>
-          {order.paymentMethod === 'money' && order.changeFor && (
-            <div className="flex items-center space-x-1 text-red-600 font-semibold">
-              <span>Troco para:</span>
-              <span>R$ {Number(order.changeFor).toFixed(2)}</span>
+
+          {/* Pagamento e Troco */}
+          <div className="flex items-center flex-wrap gap-3 text-sm text-gray-600">
+            <div className="flex items-center space-x-1">
+              <CreditCard className="h-4 w-4" />
+              <span>{paymentMethodLabels[order.paymentMethod]}</span>
             </div>
-          )}
+            {order.paymentMethod === 'money' && order.changeFor && (
+              <div className="flex items-center space-x-1 text-red-600 font-semibold">
+                <span>Troco para:</span>
+                <span>R$ {Number(order.changeFor).toFixed(2)}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center justify-between pt-4 border-t border-gray-200">
           <div className="text-lg font-bold text-gray-900">
             Total: R$ {order.total.toFixed(2)}
           </div>
-          
+
           <div className="flex items-center space-x-2">
             {order.status !== 'delivered' && order.status !== 'cancelled' && (
               <button
@@ -174,7 +190,7 @@ export function OrderCard({ order, onStatusChange, maxPrepTime }: OrderCardProps
                 <span>Cancelar</span>
               </button>
             )}
-            
+
             {nextStatusLabel && (
               <button
                 onClick={() => {

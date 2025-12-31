@@ -11,20 +11,31 @@ interface CartProps {
   onRemoveItem: (itemId: string) => void;
   onClearCart: () => void;
   totalPrice: number;
-  onOrderComplete?: () => void;
+  onOrderComplete?: (amount: number) => void;
 }
+
+import { useCustomerAuth } from '../contexts/CustomerAuthContext';
+import { AuthModal } from './AuthModal';
 
 const Cart = ({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, onClearCart, totalPrice, onOrderComplete }: CartProps) => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const { user } = useCustomerAuth();
 
   const handleCheckout = () => {
-    setIsCheckoutOpen(true);
+    if (!user) {
+      setIsAuthModalOpen(true);
+    } else {
+      setIsCheckoutOpen(true);
+    }
   };
 
   const handleOrderComplete = () => {
+    const finalAmount = totalPrice;
     onClearCart();
     setIsCheckoutOpen(false);
-    onOrderComplete?.(); // Chama o callback se existir
+    onClose(); // Fecha o sidebar do carrinho
+    onOrderComplete?.(finalAmount); // Chama o callback se existir passando o valor
   };
 
   if (!isOpen) return null;
@@ -82,7 +93,7 @@ const Cart = ({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, onClearC
                     <div className="flex-1">
                       <h3 className="font-semibold text-white mb-1">{item.name}</h3>
                       <p className="text-sm text-gray-400 mb-1">R$ {item.price.toFixed(2)} cada</p>
-                      
+
                       {/* Customizations */}
                       {item.customizations && item.customizations.length > 0 && (
                         <div className="mb-3">
@@ -99,7 +110,7 @@ const Cart = ({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, onClearC
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
                           <button
@@ -119,7 +130,7 @@ const Cart = ({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, onClearC
                             <Plus className="w-4 h-4 text-gray-300" />
                           </button>
                         </div>
-                        
+
                         <div className="flex items-center gap-3">
                           <span className="font-bold text-yellow-400">
                             R$ {(item.price * item.quantity).toFixed(2)}
@@ -149,14 +160,14 @@ const Cart = ({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, onClearC
                 R$ {totalPrice.toFixed(2)}
               </span>
             </div>
-            
+
             <button
               onClick={handleCheckout}
               className="w-full py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold text-lg rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-yellow-500/25 active:scale-95"
             >
               Finalizar Pedido
             </button>
-            
+
             <p className="text-xs text-gray-400 text-center mt-3">
               Taxa de entrega será calculada na finalização
             </p>
@@ -171,6 +182,16 @@ const Cart = ({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, onClearC
         items={items}
         totalPrice={totalPrice}
         onOrderComplete={handleOrderComplete}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          // Se o usuário logou, abre o checkout automaticamente
+          if (user) setIsCheckoutOpen(true);
+        }}
       />
     </>
   );

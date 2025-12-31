@@ -28,12 +28,12 @@ export const useRewards = () => {
     setUserRewards(rewards);
   };
 
-  // Adicionar uma compra
-  const addPurchase = () => {
+  // Adicionar uma compra (libera spin se valor >= 30)
+  const addPurchase = (amount: number) => {
     const newRewards: UserRewards = {
       ...userRewards,
       purchaseCount: userRewards.purchaseCount + 1,
-      canSpin: (userRewards.purchaseCount + 1) % 5 === 0 // Exemplo: pode girar a cada 5 compras
+      canSpin: amount >= 30
     };
     saveRewards(newRewards);
   };

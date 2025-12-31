@@ -10,6 +10,7 @@ export function Settings() {
     endereco: '',
     horario_funcionamento: '',
     tempo_maximo_preparo: 15, // Add new field
+    premio_dia: '', // Novo campo
   });
   const [loading, setLoading] = useState(true);
 
@@ -74,6 +75,7 @@ export function Settings() {
           endereco: storeInfo.endereco,
           horario_funcionamento: storeInfo.horario_funcionamento,
           tempo_maximo_preparo: storeInfo.tempo_maximo_preparo, // Save new field
+          premio_dia: storeInfo.premio_dia,
         })
         .eq('id', storeInfo.id);
 
@@ -117,6 +119,20 @@ export function Settings() {
                   name="fullName"
                   defaultValue="Admin"
                   className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+              </div>
+              <div>
+                <label htmlFor="premio_dia" className="block text-sm font-medium text-gray-700">
+                  Prêmio do Dia (Jogo Cronômetro)
+                </label>
+                <input
+                  type="text"
+                  id="premio_dia"
+                  name="premio_dia"
+                  value={storeInfo.premio_dia}
+                  onChange={handleStoreInfoChange}
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Ex: 1 Milkshake grátis, 10% de desconto, etc."
                 />
               </div>
               <div>

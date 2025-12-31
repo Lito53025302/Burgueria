@@ -1,22 +1,34 @@
 import { Gamepad2 } from 'lucide-react';
-import { UserRewards } from '../types/rewards';
 
 interface RewardFloatingButtonProps {
-  userRewards: UserRewards;
   onClick: () => void;
+  disabled?: boolean;
 }
 
-const RewardFloatingButton = ({ userRewards, onClick }: RewardFloatingButtonProps) => {
+const RewardFloatingButton = ({ onClick, disabled }: RewardFloatingButtonProps) => {
   return (
     <button
       onClick={onClick}
-      className="fixed bottom-6 right-6 bg-green-500 hover:bg-green-600 text-white p-4 rounded-full shadow-lg flex items-center justify-center z-50 transition-all duration-300 hover:scale-110"
-      title="Jogar Snake - Divirta-se enquanto espera!"
+      disabled={disabled}
+      className={`fixed bottom-6 right-6 p-4 rounded-full shadow-2xl z-[100] transition-all duration-300 group
+        ${disabled
+          ? 'bg-gray-800 text-gray-500 cursor-not-allowed opacity-50'
+          : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:scale-110 hover:shadow-yellow-500/50 animate-bounce'
+        }`}
+      title={disabled ? 'Faça uma compra para liberar!' : 'JOGAR AGORA!'}
     >
-      <Gamepad2 className="w-6 h-6" />
-      <span className="absolute -top-1 -right-1 bg-yellow-500 text-black rounded-full w-5 h-5 text-xs flex items-center justify-center font-bold animate-pulse">
-        🎮
-      </span>
+      <Gamepad2 className="w-8 h-8 relative z-10" />
+
+      {!disabled && (
+        <>
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-ping" />
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white" />
+
+          <div className="absolute right-full mr-4 bg-white text-black px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg arrow-right">
+            🎁 PRÊMIO LIBERADO!
+          </div>
+        </>
+      )}
     </button>
   );
 };

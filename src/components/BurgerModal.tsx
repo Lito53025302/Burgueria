@@ -1,4 +1,4 @@
-import { X, Plus, Minus, Flame, Leaf, Clock } from 'lucide-react';
+import { X, Plus, Minus, Flame, Leaf, Clock, ChefHat } from 'lucide-react';
 import { useState } from 'react';
 import { BurgerItem } from '../types';
 

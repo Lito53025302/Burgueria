@@ -3,6 +3,10 @@ import { X, MapPin, CreditCard, Clock, CheckCircle, User, Phone, Home, Plus } fr
 import { CartItem } from '../types';
 import { supabase } from '../lib/supabase';
 import OrderProgress from './OrderProgress';
+import { useCustomerAuth } from '../contexts/CustomerAuthContext';
+import { customerSchema, orderSchema } from '../lib/schemas';
+import { z } from 'zod';
+import { logger } from '../utils/logger';
 
 interface Address {
   street: string;
@@ -22,6 +26,7 @@ interface CheckoutProps {
 }
 
 const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: CheckoutProps) => {
+  const { user } = useCustomerAuth();
   const [step, setStep] = useState(1); // 1: Dados, 2: Pagamento, 3: Confirmação
   const [orderData, setOrderData] = useState<{
     name: string;
@@ -53,68 +58,51 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
   const [orderCompleted, setOrderCompleted] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
-  const [profile] = useState<any>(null); // placeholder para manter o fluxo de endereço salvo, se desejar
+  const [profile, setProfile] = useState<any>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Função para buscar ou criar cliente pelo celular
-  interface ClienteInput {
-    nome: string;
-    celular: string;
-    cpf: string;
-    endereco: Address;
-  }
-  async function getOrCreateCliente({ nome, celular, cpf, endereco }: ClienteInput) {
-    const { data: cliente } = await supabase
-      .from('clientes')
-      .select('*')
-      .eq('celular', celular)
-      .single();
-
-    if (cliente) {
-      return cliente;
-    } else {
-      // Cria novo cliente
-      const { data: novoCliente, error: insertError } = await supabase
-        .from('clientes')
-        .insert([{ nome, celular, cpf, endereco }])
-        .select()
-        .single();
-      if (insertError) throw insertError;
-      return novoCliente;
-    }
-  }
-
-  // Carregar dados do perfil quando o modal abrir
+  // Carregar dados iniciais do usuário logado
   useEffect(() => {
-    if (isOpen && profile) {
+    if (isOpen && user) {
+      const metadata = user.user_metadata;
       setOrderData(prev => ({
         ...prev,
-        name: profile.name || '',
-        phone: profile.phone || '',
-        address: profile.address || {
-          street: '',
-          number: '',
-          complement: '',
-          neighborhood: '',
-          city: '',
-          zipCode: ''
-        }
+        name: metadata?.name || '',
+        phone: metadata?.phone || '',
       }));
-      
-      // Se já tem endereço salvo, não usar novo endereço
-      if (profile.address && profile.address.street) {
-        setUseNewAddress(false);
-      } else {
-        setUseNewAddress(true);
-      }
+
+      // Buscar perfil completo no banco (incluindo endereço salvo)
+      const fetchProfile = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single() as any;
+
+        if (data) {
+          setProfile(data);
+          if (data.address) {
+            setOrderData(prev => ({
+              ...prev,
+              address: data.address
+            }));
+            setUseNewAddress(false);
+          } else {
+            setUseNewAddress(true);
+          }
+        }
+      };
+
+      fetchProfile();
     }
-  }, [isOpen, profile]);
+  }, [isOpen, user]);
 
   // Atualiza endereço no resumo após login/cadastro
   useEffect(() => {
     if (profile) {
       setOrderData(prev => ({
         ...prev,
-        address: profile.address || {
+        address: (profile as any).address || {
           street: '',
           number: '',
           complement: '',
@@ -125,6 +113,10 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
       }));
     }
   }, [profile]);
+
+  // Recupera o último pedido salvo ao abrir o app/modal
+
+
 
   if (!isOpen) return null;
 
@@ -143,7 +135,7 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
       const addressField = field.split('.')[1];
       setOrderData(prev => ({
         ...prev,
-        address: { ...prev.address, [addressField]: value }
+        address: { ...prev.address, [addressField as keyof Address]: value }
       }));
     } else {
       setOrderData(prev => ({ ...prev, [field]: value }));
@@ -151,7 +143,13 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
   };
 
   const handleNextStep = () => {
-    if (step < 3) {
+    if (step === 1) {
+      if (validateStep1()) {
+        setStep(step + 1);
+      } else {
+        logger.warn('Tentativa de avançar step 1 com dados inválidos', { errors });
+      }
+    } else if (step < 3) {
       setStep(step + 1);
     }
   };
@@ -162,60 +160,85 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
     }
   };
 
+  /* 
+   * Validação Final e Envio do Pedido
+   */
   const handleFinishOrder = async () => {
+    if (!user) {
+      alert("Você precisa estar logado para finalizar o pedido.");
+      return;
+    }
+
+    const totalAmount = finalTotal + (orderData.deliveryTime === 'fast' ? 5 : 0);
+    const fullAddress = `${orderData.address.street}, ${orderData.address.number}${orderData.address.complement ? ' - ' + orderData.address.complement : ''} - ${orderData.address.neighborhood}, ${orderData.address.city} - ${orderData.address.zipCode}`;
+
+    // Validação de segurança final antes do envio
+    try {
+      orderSchema.parse({
+        items: items,
+        total: totalAmount,
+        paymentMethod: orderData.paymentMethod,
+        changeFor: orderData.changeFor,
+        deliveryAddress: fullAddress
+      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        logger.error('Tentativa de finalizar pedido inválido', error);
+        alert('Dados do pedido inválidos: ' + error.errors.map((e: any) => e.message).join(', '));
+        return;
+      }
+    }
+
     setIsProcessing(true);
     try {
-      // Busca ou cria cliente pelo celular
-      const cliente = await getOrCreateCliente({
-        nome: orderData.name,
-        celular: orderData.phone,
-        cpf: orderData.cpf,
-        endereco: orderData.address
-      });
+      // Se 'Salvar Endereço' estiver marcado, atualiza o perfil do usuário
+      if (saveAddress) {
+        await supabase
+          .from('profiles')
+          .update({
+            address: orderData.address,
+            phone: orderData.phone,
+            name: orderData.name
+          } as any)
+          .eq('id', user.id);
+      }
 
       // Salvar pedido no Supabase
-
       const { data: orderInsertData, error } = await supabase.from('orders').insert([
         {
-          cliente_id: cliente.id,
+          cliente_id: user.id,
           customer_name: orderData.name,
           customer_phone: orderData.phone,
           items: JSON.stringify(items),
-          status: orderData.paymentMethod === 'cash' ? 'pending' : 'pending',
-          total: finalTotal + (orderData.deliveryTime === 'fast' ? 5 : 0),
-          address: `${orderData.address.street}, ${orderData.address.number}${orderData.address.complement ? ' - ' + orderData.address.complement : ''} - ${orderData.address.neighborhood}, ${orderData.address.city} - ${orderData.address.zipCode}`,
+          status: 'pending',
+          total: totalAmount,
+          address: fullAddress,
           payment_method: orderData.paymentMethod === 'cash' ? 'money' : orderData.paymentMethod,
           change_for: orderData.paymentMethod === 'cash' ? orderData.changeFor : null,
           created_at: new Date().toISOString(),
           // CAMPOS PARA O APP DO ENTREGADOR
-          delivery_address: `${orderData.address.street}, ${orderData.address.number}${orderData.address.complement ? ' - ' + orderData.address.complement : ''} - ${orderData.address.neighborhood}, ${orderData.address.city} - ${orderData.address.zipCode}`,
+          delivery_address: fullAddress,
           items_count: items.length,
           total_amount: getOrderTotal()
         }
-      ]).select();
+      ] as any).select() as any;
+
       if (error) throw error;
+
       // Salva o ID do pedido criado para o progresso real
-      const newOrderId = orderInsertData?.[0]?.id || null;
+      const newOrderId = orderInsertData?.[0]?.id ? String(orderInsertData[0].id) : null;
       setLastOrderId(newOrderId);
       if (newOrderId) {
         try {
           localStorage.setItem('lastOrderId', newOrderId);
-        } catch {}
+        } catch { }
       }
-  // Recupera o último pedido salvo ao abrir o app/modal
-  useEffect(() => {
-    if (isOpen && !lastOrderId) {
-      try {
-        const savedOrderId = localStorage.getItem('lastOrderId');
-        if (savedOrderId) setLastOrderId(savedOrderId);
-      } catch {}
-    }
-  }, [isOpen, lastOrderId]);
 
-      // Simular processamento do pedido
+      // Simular processamento visual
       await new Promise(resolve => setTimeout(resolve, 2000));
       setIsProcessing(false);
       setOrderCompleted(true);
+
       setTimeout(() => {
         setOrderCompleted(false);
         setShowProgress(true);
@@ -224,7 +247,7 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
     } catch (error: any) {
       console.error('Erro ao finalizar pedido:', error);
       setIsProcessing(false);
-      alert('Erro ao salvar pedido: ' + (error?.message || error?.details || 'Tente novamente.'));
+      alert('Erro ao salvar pedido: ' + (error?.message || 'Tente novamente.'));
     }
   };
 
@@ -235,24 +258,59 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
     setStep(1);
     try {
       localStorage.removeItem('lastOrderId');
-    } catch {}
+    } catch { }
+  };
+
+
+
+  const validateStep1 = () => {
+    try {
+      customerSchema.parse({
+        name: orderData.name,
+        phone: orderData.phone,
+        address: `${orderData.address.street}, ${orderData.address.number}, ${orderData.address.neighborhood}, ${orderData.address.city}, ${orderData.address.zipCode}`
+      });
+
+      // Validação extra para endereço detalhado
+      if (!orderData.address.street || !orderData.address.number || !orderData.address.neighborhood || !orderData.address.city || !orderData.address.zipCode) {
+        setErrors({ address: 'Endereço incompleto' });
+        return false;
+      }
+
+      setErrors({});
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        error.errors.forEach(err => {
+          if (err.path[0]) {
+            newErrors[err.path[0].toString()] = err.message;
+          }
+        });
+        setErrors(newErrors);
+      }
+      return false;
+    }
   };
 
   const isStepValid = () => {
     if (step === 1) {
-      return orderData.name && orderData.phone && 
-             orderData.address.street && orderData.address.number && 
-             orderData.address.neighborhood && orderData.address.city && 
-             orderData.address.zipCode;
+      // Validação visual básica para habilitar botão, a validação completa Zod ocorre ao tentar avançar ou no onBlur
+      return orderData.name.length >= 3 &&
+        orderData.phone.length >= 10 &&
+        orderData.address.street &&
+        orderData.address.number &&
+        orderData.address.neighborhood &&
+        orderData.address.city &&
+        orderData.address.zipCode;
     }
     if (step === 2) {
       if (orderData.paymentMethod === 'cash') {
-        // Se o campo de troco estiver preenchido, precisa ser maior ou igual ao total
         if (orderData.changeFor && Number(orderData.changeFor) < getOrderTotal()) {
           return false;
         }
       }
-      return orderData.paymentMethod;
+      return !!orderData.paymentMethod;
     }
     return true;
   };
@@ -293,22 +351,19 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
           <div className="flex items-center justify-between">
             {[1, 2, 3].map((stepNumber) => (
               <div key={stepNumber} className="flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                  step >= stepNumber 
-                    ? 'bg-yellow-500 text-black' 
-                    : 'bg-gray-700 text-gray-400'
-                }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${step >= stepNumber
+                  ? 'bg-yellow-500 text-black'
+                  : 'bg-gray-700 text-gray-400'
+                  }`}>
                   {stepNumber}
                 </div>
-                <span className={`ml-2 ${
-                  step >= stepNumber ? 'text-yellow-400' : 'text-gray-400'
-                }`}>
+                <span className={`ml-2 ${step >= stepNumber ? 'text-yellow-400' : 'text-gray-400'
+                  }`}>
                   {stepNumber === 1 ? 'Dados' : stepNumber === 2 ? 'Pagamento' : 'Confirmação'}
                 </span>
                 {stepNumber < 3 && (
-                  <div className={`w-16 h-1 mx-4 ${
-                    step > stepNumber ? 'bg-yellow-500' : 'bg-gray-700'
-                  }`} />
+                  <div className={`w-16 h-1 mx-4 ${step > stepNumber ? 'bg-yellow-500' : 'bg-gray-700'
+                    }`} />
                 )}
               </div>
             ))}
@@ -363,9 +418,10 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
                         type="text"
                         value={orderData.name}
                         onChange={(e) => handleInputChange('name', e.target.value)}
-                        className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:border-yellow-500 focus:outline-none"
+                        className={`w-full p-3 bg-gray-800 border ${errors.name ? 'border-red-500' : 'border-gray-700'} rounded-xl text-white focus:border-yellow-500 focus:outline-none`}
                         placeholder="Seu nome completo"
                       />
+                      {errors.name && <span className="text-xs text-red-500 mt-1">{errors.name}</span>}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-400 mb-2">Telefone</label>
@@ -373,9 +429,10 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
                         type="tel"
                         value={orderData.phone}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
-                        className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:border-yellow-500 focus:outline-none"
+                        className={`w-full p-3 bg-gray-800 border ${errors.phone ? 'border-red-500' : 'border-gray-700'} rounded-xl text-white focus:border-yellow-500 focus:outline-none`}
                         placeholder="(11) 99999-9999"
                       />
+                      {errors.phone && <span className="text-xs text-red-500 mt-1">{errors.phone}</span>}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -385,7 +442,7 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
                         type="text"
                         value={orderData.address.street}
                         onChange={(e) => handleInputChange('address.street', e.target.value)}
-                        className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl text-white focus:border-yellow-500 focus:outline-none"
+                        className={`w-full p-3 bg-gray-800 border ${errors.address ? 'border-red-500' : 'border-gray-700'} rounded-xl text-white focus:border-yellow-500 focus:outline-none`}
                         placeholder="Nome da rua"
                       />
                     </div>
@@ -400,6 +457,8 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
                       />
                     </div>
                   </div>
+                  {errors.address && <span className="text-xs text-red-500 mt-1">{errors.address}</span>}
+
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-2">CPF</label>
                     <input
@@ -490,11 +549,10 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
                   <button
                     key={method.id}
                     onClick={() => handleInputChange('paymentMethod', method.id)}
-                    className={`w-full p-4 rounded-xl border transition-all duration-300 flex items-center gap-3 ${
-                      orderData.paymentMethod === method.id
-                        ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
-                        : 'border-gray-700 bg-gray-800/50 text-gray-300 hover:border-gray-600'
-                    }`}
+                    className={`w-full p-4 rounded-xl border transition-all duration-300 flex items-center gap-3 ${orderData.paymentMethod === method.id
+                      ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                      : 'border-gray-700 bg-gray-800/50 text-gray-300 hover:border-gray-600'
+                      }`}
                   >
                     <method.icon className="w-5 h-5" />
                     {method.name}
@@ -532,11 +590,10 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
                     <button
                       key={delivery.id}
                       onClick={() => handleInputChange('deliveryTime', delivery.id)}
-                      className={`w-full p-4 rounded-xl border transition-all duration-300 flex items-center justify-between ${
-                        orderData.deliveryTime === delivery.id
-                          ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
-                          : 'border-gray-700 bg-gray-800/50 text-gray-300 hover:border-gray-600'
-                      }`}
+                      className={`w-full p-4 rounded-xl border transition-all duration-300 flex items-center justify-between ${orderData.deliveryTime === delivery.id
+                        ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                        : 'border-gray-700 bg-gray-800/50 text-gray-300 hover:border-gray-600'
+                        }`}
                     >
                       <span>{delivery.name}</span>
                       <span className="text-sm">{delivery.extra}</span>
@@ -550,7 +607,7 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
           {step === 3 && (
             <div className="space-y-6">
               <h3 className="text-xl font-bold text-white mb-4">Resumo do Pedido</h3>
-              
+
               {/* Items */}
               <div className="space-y-3">
                 {items.map((item, index) => (
@@ -624,15 +681,14 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
               Voltar
             </button>
           )}
-          
+
           <button
             onClick={step === 3 ? handleFinishOrder : handleNextStep}
             disabled={!isStepValid() || isProcessing}
-            className={`flex-1 py-3 rounded-xl font-bold transition-all duration-300 ${
-              isStepValid() && !isProcessing
-                ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:scale-[1.02]'
-                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-            }`}
+            className={`flex-1 py-3 rounded-xl font-bold transition-all duration-300 ${isStepValid() && !isProcessing
+              ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:scale-[1.02]'
+              : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              }`}
           >
             {isProcessing ? (
               <div className="flex items-center justify-center gap-2">
@@ -653,7 +709,7 @@ const Checkout = ({ isOpen, onClose, items, totalPrice, onOrderComplete }: Check
           Vamos salvar o orderId ao criar o pedido e passar aqui.
         */}
         <OrderProgress
-          isOpen={showProgress || !!lastOrderId}
+          isOpen={showProgress}
           onClose={handleProgressClose}
           estimatedTime={orderData.deliveryTime === 'fast' ? 20 : 30}
           orderId={lastOrderId}

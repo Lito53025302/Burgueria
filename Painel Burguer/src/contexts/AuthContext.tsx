@@ -1,57 +1,112 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
+import { supabase } from '../lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user data
-const mockUser: User = {
-  id: '1',
-  email: 'admin@restaurante.com',
-  name: 'Administrador',
-  role: 'admin'
-};
+// Converte usuário do Supabase para o formato do app
+function mapSupabaseUser(supabaseUser: SupabaseUser | null): User | null {
+  if (!supabaseUser) return null;
+
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email || '',
+    name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'Admin',
+    role: 'admin' // Por enquanto todos os usuários do painel são admin
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate checking for existing session
-    const savedUser = localStorage.getItem('admin_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    let mounted = true;
+
+    // Verifica sessão existente
+    const checkSession = async () => {
+      try {
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        if (mounted) {
+          setUser(mapSupabaseUser(supabaseUser));
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sessão:', error);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    checkSession();
+
+    // Escuta mudanças de autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (mounted) {
+          setUser(mapSupabaseUser(session?.user || null));
+          setIsLoading(false);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock authentication - accept admin@restaurante.com / admin123
-    if (email === 'admin@restaurante.com' && password === 'admin123') {
-      setUser(mockUser);
-      localStorage.setItem('admin_user', JSON.stringify(mockUser));
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        setIsLoading(false);
+
+        // Traduz mensagens de erro comuns
+        let errorMessage = error.message;
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email ou senha incorretos';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.';
+        }
+
+        return { success: false, error: errorMessage };
+      }
+
+      setUser(mapSupabaseUser(data.user));
       setIsLoading(false);
-      return true;
+      return { success: true };
+    } catch (error: any) {
+      setIsLoading(false);
+      return { success: false, error: error.message || 'Erro ao fazer login' };
     }
-    
-    setIsLoading(false);
-    return false;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('admin_user');
+  const logout = async () => {
+    setIsLoading(true);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

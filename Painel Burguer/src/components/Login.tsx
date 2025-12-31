@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, AlertCircle, Loader } from 'lucide-react';
 
@@ -8,13 +8,13 @@ export function Login() {
   const [error, setError] = useState('');
   const { login, isLoading } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    
-    const success = await login(email, password);
-    if (!success) {
-      setError('Email ou senha inválidos');
+
+    const result = await login(email, password);
+    if (!result.success) {
+      setError(result.error || 'Email ou senha inválidos');
     }
   };
 
@@ -42,7 +42,7 @@ export function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="admin@restaurante.com"
+                placeholder="seu@email.com"
                 required
               />
             </div>
@@ -86,9 +86,9 @@ export function Login() {
           </button>
         </form>
 
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <p className="text-sm text-gray-600 text-center">
-            <strong>Demo:</strong> admin@restaurante.com / admin123
+        <div className="mt-6 text-center">
+          <p className="text-xs text-gray-500">
+            Acesso restrito a administradores autorizados
           </p>
         </div>
       </div>

@@ -177,12 +177,12 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Imagem do Produto
+              Foto do Produto
             </label>
             <div
               onClick={() => !uploading && fileInputRef.current?.click()}
-              className={`relative h-48 rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center cursor-pointer overflow-hidden ${formData.image
-                  ? 'border-blue-500 bg-blue-50/10'
+              className={`relative h-64 rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center cursor-pointer overflow-hidden ${formData.image
+                  ? 'border-green-500 bg-green-50/5'
                   : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-gray-100'
                 }`}
             >
@@ -194,8 +194,11 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <div className="bg-white/90 p-3 rounded-full text-blue-600 shadow-lg">
-                      <Upload className="h-6 w-6" />
+                    <div className="bg-white p-3 rounded-full text-red-600 shadow-lg hover:scale-110 transition-transform" onClick={(e) => {
+                      e.stopPropagation();
+                      setFormData({ ...formData, image: '' });
+                    }}>
+                      <X className="h-6 w-6" />
                     </div>
                   </div>
                 </>
@@ -203,16 +206,16 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
                 <div className="text-center p-6">
                   {uploading ? (
                     <div className="flex flex-col items-center">
-                      <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-2" />
-                      <p className="text-sm text-blue-600 font-medium">Enviando imagem...</p>
+                      <Loader2 className="h-12 w-12 text-blue-600 animate-spin mb-4" />
+                      <p className="text-lg text-blue-600 font-bold">Enviando para o servidor...</p>
                     </div>
                   ) : (
                     <>
-                      <div className="bg-blue-100 p-4 rounded-full inline-block mb-3">
-                        <Upload className="h-8 w-8 text-blue-600" />
+                      <div className="bg-blue-100 p-5 rounded-full inline-block mb-4">
+                        <Upload className="h-10 w-10 text-blue-600" />
                       </div>
-                      <p className="text-sm text-gray-600 font-medium">Clique para fazer upload da foto</p>
-                      <p className="text-xs text-gray-400 mt-1">PNG, JPG ou WEBP (Max 5MB)</p>
+                      <p className="text-lg text-gray-700 font-bold">Clique para selecionar a foto</p>
+                      <p className="text-sm text-gray-400 mt-2">A imagem será salva no Supabase Storage</p>
                     </>
                   )}
                 </div>
@@ -226,19 +229,6 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
               accept="image/*"
               className="hidden"
             />
-
-            <div className="mt-4">
-              <label className="block text-xs font-medium text-gray-400 mb-1">
-                Ou cole uma URL externa:
-              </label>
-              <input
-                type="url"
-                value={formData.image}
-                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                placeholder="https://exemplo.com/foto.jpg"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
           </div>
 
           <div className="flex items-center">

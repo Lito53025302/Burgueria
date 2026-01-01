@@ -196,9 +196,12 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
               />
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }}
                 disabled={uploading}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors flex items-center space-x-2 disabled:opacity-50"
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
               >
                 {uploading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

@@ -29,7 +29,7 @@ const statusToStep = (status: string | undefined) => {
 
 const OrderProgress = ({ isOpen, onClose, estimatedTime, orderId }: OrderProgressProps) => {
   const [timeLeft, setTimeLeft] = useState(estimatedTime);
-  const { order, loading } = useOrderStatus(orderId || null);
+  const { order } = useOrderStatus(orderId || null);
   const currentStep = statusToStep(order?.status);
 
   const isArrived = order?.motoboy_arrived;

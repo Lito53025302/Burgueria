@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { X, Upload, Image as ImageIcon } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Upload, Loader2 } from 'lucide-react';
 import { MenuItem } from '../../types';
+import { supabase } from '../../lib/supabase';
 
 interface MenuItemFormProps {
   isOpen: boolean;
@@ -10,13 +11,12 @@ interface MenuItemFormProps {
 }
 
 const categories = [
-  'Pizza',
   'Hambúrguer',
+  'Pizza',
   'Salada',
   'Massas',
   'Bebidas',
   'Sobremesas',
-  'Pratos Principais',
   'Petiscos'
 ];
 
@@ -29,6 +29,36 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
     category: categories[0],
     available: true
   });
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      setUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('products')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('products')
+        .getPublicUrl(filePath);
+
+      setFormData({ ...formData, image: publicUrl });
+    } catch (error: any) {
+      alert('Erro ao fazer upload da imagem: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (editItem) {
@@ -54,7 +84,7 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     onSubmit({
       name: formData.name,
       description: formData.description,
@@ -63,7 +93,7 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
       category: formData.category,
       available: formData.available
     });
-    
+
     onClose();
   };
 
@@ -147,22 +177,35 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              URL da Imagem
+              Imagem do Item
             </label>
             <div className="flex space-x-2">
               <input
                 type="url"
                 value={formData.image}
                 onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                placeholder="https://exemplo.com/imagem.jpg"
+                placeholder="URL da imagem ou faça upload ao lado"
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*"
+                className="hidden"
               />
               <button
                 type="button"
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors flex items-center space-x-2"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors flex items-center space-x-2 disabled:opacity-50"
               >
-                <Upload className="h-4 w-4" />
-                <span className="hidden sm:inline">Upload</span>
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">{uploading ? 'Enviando...' : 'Upload'}</span>
               </button>
             </div>
             {formData.image && (

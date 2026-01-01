@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { MenuItem, Order, DashboardStats, StoreStatus } from '../types';
 import { supabase } from '../lib/supabase';
 import { logger } from '../utils/logger';
@@ -90,24 +90,56 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     recentOrders: [] // Corrigido: não usa mais mockOrders
   });
 
-  const addMenuItem = (item: Omit<MenuItem, 'id' | 'createdAt' | 'soldCount'>) => {
-    const newItem: MenuItem = {
-      ...item,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      soldCount: 0
-    };
-    setMenuItems(prev => [...prev, newItem]);
+  const addMenuItem = async (item: Omit<MenuItem, 'id' | 'createdAt' | 'soldCount'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('menu_items')
+        .insert([{
+          ...item,
+          sold_count: 0
+        }])
+        .select();
+
+      if (error) throw error;
+      if (data) {
+        setMenuItems(prev => [...prev, data[0] as MenuItem]);
+      }
+    } catch (error) {
+      logger.error('Erro ao adicionar item ao cardápio', error);
+      alert('Erro ao adicionar item.');
+    }
   };
 
-  const updateMenuItem = (id: string, updates: Partial<MenuItem>) => {
-    setMenuItems(prev => prev.map(item =>
-      item.id === id ? { ...item, ...updates } : item
-    ));
+  const updateMenuItem = async (id: string, updates: Partial<MenuItem>) => {
+    try {
+      const { error } = await supabase
+        .from('menu_items')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+      setMenuItems(prev => prev.map(item =>
+        item.id === id ? { ...item, ...updates } : item
+      ));
+    } catch (error) {
+      logger.error('Erro ao atualizar item do cardápio', error);
+      alert('Erro ao atualizar item.');
+    }
   };
 
-  const deleteMenuItem = (id: string) => {
-    setMenuItems(prev => prev.filter(item => item.id !== id));
+  const deleteMenuItem = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('menu_items')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setMenuItems(prev => prev.filter(item => item.id !== id));
+    } catch (error) {
+      logger.error('Erro ao excluir item do cardápio', error);
+      alert('Erro ao excluir item.');
+    }
   };
 
   const updateOrderStatus = async (id: string, status: Order['status']) => {
@@ -176,9 +208,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  // Buscar pedidos reais do Supabase ao iniciar
+  // Buscar itens do cardápio e pedidos reais do Supabase ao iniciar
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
+
+    async function fetchMenuItems() {
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        logger.error('Erro ao buscar itens do cardápio', error);
+        return;
+      }
+
+      if (data) {
+        const mappedItems = data.map((item: any) => ({
+          ...item,
+          soldCount: item.sold_count,
+          createdAt: item.created_at
+        }));
+        setMenuItems(mappedItems as MenuItem[]);
+      }
+    }
+
     async function fetchOrders() {
       const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
       if (error) {
@@ -204,8 +258,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }));
       setOrders(mappedOrders);
     }
+
+    fetchMenuItems();
     fetchOrders();
-    // Polling: busca pedidos a cada 3 segundos
     // Polling: busca pedidos a cada 10 segundos (fallback)
     intervalId = setInterval(fetchOrders, 10000);
 

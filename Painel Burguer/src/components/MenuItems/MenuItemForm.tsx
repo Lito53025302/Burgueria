@@ -177,52 +177,68 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Imagem do Item
+              Imagem do Produto
             </label>
-            <div className="flex space-x-2">
+            <div
+              onClick={() => !uploading && fileInputRef.current?.click()}
+              className={`relative h-48 rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center cursor-pointer overflow-hidden ${formData.image
+                  ? 'border-blue-500 bg-blue-50/10'
+                  : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-gray-100'
+                }`}
+            >
+              {formData.image ? (
+                <>
+                  <img
+                    src={formData.image}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <div className="bg-white/90 p-3 rounded-full text-blue-600 shadow-lg">
+                      <Upload className="h-6 w-6" />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center p-6">
+                  {uploading ? (
+                    <div className="flex flex-col items-center">
+                      <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-2" />
+                      <p className="text-sm text-blue-600 font-medium">Enviando imagem...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="bg-blue-100 p-4 rounded-full inline-block mb-3">
+                        <Upload className="h-8 w-8 text-blue-600" />
+                      </div>
+                      <p className="text-sm text-gray-600 font-medium">Clique para fazer upload da foto</p>
+                      <p className="text-xs text-gray-400 mt-1">PNG, JPG ou WEBP (Max 5MB)</p>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*"
+              className="hidden"
+            />
+
+            <div className="mt-4">
+              <label className="block text-xs font-medium text-gray-400 mb-1">
+                Ou cole uma URL externa:
+              </label>
               <input
                 type="url"
                 value={formData.image}
                 onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                placeholder="URL da imagem ou faça upload ao lado"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="https://exemplo.com/foto.jpg"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept="image/*"
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  fileInputRef.current?.click();
-                }}
-                disabled={uploading}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition-colors flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
-              >
-                {uploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Upload className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">{uploading ? 'Enviando...' : 'Upload'}</span>
-              </button>
             </div>
-            {formData.image && (
-              <div className="mt-2">
-                <img
-                  src={formData.image}
-                  alt="Preview"
-                  className="w-24 h-24 object-cover rounded-lg border border-gray-300"
-                  onError={(e) => {
-                    e.currentTarget.src = 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=400';
-                  }}
-                />
-              </div>
-            )}
           </div>
 
           <div className="flex items-center">

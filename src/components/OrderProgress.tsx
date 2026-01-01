@@ -71,11 +71,11 @@ const OrderProgress = ({ isOpen, onClose, estimatedTime, orderId }: OrderProgres
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end md:items-center justify-center overflow-hidden animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 rounded-3xl p-8 max-w-md w-full text-center border border-gray-800"
+        className="bg-gray-900 rounded-t-[2rem] md:rounded-3xl p-8 max-w-md w-full text-center border-t md:border border-gray-800 animate-slide-up md:animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-8">

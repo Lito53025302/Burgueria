@@ -62,7 +62,7 @@ const BurgerModal = ({ burger, onClose, onAddToCart }: BurgerModalProps) => {
   const customizationOptions = getCustomizationOptions();
 
   const toggleCustomization = (customization: string) => {
-    setSelectedCustomizations(prev => 
+    setSelectedCustomizations(prev =>
       prev.includes(customization)
         ? prev.filter(item => item !== customization)
         : [...prev, customization]
@@ -93,12 +93,12 @@ const BurgerModal = ({ burger, onClose, onAddToCart }: BurgerModalProps) => {
 
   return (
     <div
-      className="fixed inset-0 w-screen h-screen z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center overflow-auto p-4 animate-fade-in md:items-center md:justify-center"
-      style={{ alignItems: 'flex-start', justifyContent: 'center' }}
+      className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-end md:items-center justify-center overflow-hidden animate-fade-in"
+      onClick={onClose}
     >
       <div
-        className="bg-gray-900 rounded-3xl w-full max-w-4xl max-h-full md:max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-800 animate-scale-in"
-        style={{ marginTop: 'max(16px, env(safe-area-inset-top, 0px))' }}
+        className="bg-gray-900 rounded-t-[2rem] md:rounded-3xl w-full max-w-4xl h-[92vh] md:h-auto md:max-h-[95vh] overflow-y-auto shadow-2xl border-t md:border border-gray-800 animate-slide-up md:animate-scale-in"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="relative">
@@ -181,11 +181,10 @@ const BurgerModal = ({ burger, onClose, onAddToCart }: BurgerModalProps) => {
                   <button
                     key={index}
                     onClick={() => toggleCustomization(option.name)}
-                    className={`p-4 rounded-xl text-left transition-all duration-300 ${
-                      selectedCustomizations.includes(option.name)
+                    className={`p-4 rounded-xl text-left transition-all duration-300 ${selectedCustomizations.includes(option.name)
                         ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
                         : 'bg-gray-800/30 border-gray-700 text-gray-300 hover:border-yellow-500/50'
-                    } border`}
+                      } border`}
                   >
                     <div className="font-medium mb-1">{option.name}</div>
                     <div className="text-sm opacity-75">+ R$ {option.price.toFixed(2)}</div>
@@ -221,9 +220,8 @@ const BurgerModal = ({ burger, onClose, onAddToCart }: BurgerModalProps) => {
 
             <button
               onClick={handleAddToCart}
-              className={`px-8 py-4 bg-gradient-to-r ${
-                'from-yellow-500 to-orange-500'
-              } text-black font-bold text-lg rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-yellow-500/25 active:scale-95 flex items-center justify-center gap-3 w-full md:w-auto`}
+              className={`px-8 py-4 bg-gradient-to-r ${'from-yellow-500 to-orange-500'
+                } text-black font-bold text-lg rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-yellow-500/25 active:scale-95 flex items-center justify-center gap-3 w-full md:w-auto`}
             >
               <>
                 <Plus className="w-5 h-5" />

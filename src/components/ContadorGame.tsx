@@ -114,8 +114,14 @@ const ContadorGame: React.FC<ContadorGameProps> = ({ isOpen, onClose, canPlay })
   if (!isOpen || canPlay === false) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
-      <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-8 md:p-12 max-w-2xl w-full text-center shadow-2xl border border-white/20 relative">
+    <div
+      className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in overflow-hidden"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gray-900/95 backdrop-blur-sm rounded-t-[2.5rem] md:rounded-3xl p-8 md:p-12 max-w-2xl w-full text-center shadow-2xl border-t md:border border-white/10 relative h-[90vh] md:h-auto overflow-y-auto animate-slide-up md:animate-scale-in"
+        onClick={(e) => e.stopPropagation()}
+      >
         {!['running'].includes(gameStatus) && (
           <button onClick={handleFinish} className="absolute top-4 right-4 text-white text-2xl hover:text-gray-300">×</button>
         )}

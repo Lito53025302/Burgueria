@@ -37,26 +37,77 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
       const file = event.target.files?.[0];
       if (!file) return;
 
+      // Validar tipo de arquivo
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        alert('❌ Tipo de arquivo inválido! Use apenas: JPEG, PNG, GIF ou WebP');
+        return;
+      }
+
+      // Validar tamanho (5MB máximo)
+      const maxSize = 5 * 1024 * 1024; // 5MB em bytes
+      if (file.size > maxSize) {
+        alert('❌ Arquivo muito grande! Tamanho máximo: 5MB');
+        return;
+      }
+
+      console.log('📤 Iniciando upload...', {
+        nome: file.name,
+        tipo: file.type,
+        tamanho: `${(file.size / 1024).toFixed(2)} KB`
+      });
+
       setUploading(true);
+
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('products')
-        .upload(filePath, file);
+      console.log('📂 Enviando para bucket "products":', filePath);
 
-      if (uploadError) throw uploadError;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('products')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('❌ Erro no upload:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('✅ Upload concluído:', uploadData);
 
       const { data: { publicUrl } } = supabase.storage
         .from('products')
         .getPublicUrl(filePath);
 
+      console.log('🔗 URL pública gerada:', publicUrl);
+
       setFormData({ ...formData, image: publicUrl });
+      alert('✅ Imagem enviada com sucesso!');
+
     } catch (error: any) {
-      alert('Erro ao fazer upload da imagem: ' + error.message);
+      console.error('❌ Erro completo:', error);
+
+      let errorMessage = 'Erro ao fazer upload da imagem';
+
+      if (error.message?.includes('new row violates row-level security')) {
+        errorMessage = '🔒 Erro de permissão! O bucket "products" precisa ter políticas de acesso configuradas.\n\nVeja o arquivo CONFIGURAR_STORAGE.md para instruções.';
+      } else if (error.message?.includes('Bucket not found')) {
+        errorMessage = '📦 Bucket "products" não encontrado!\n\nVocê precisa criar o bucket no Supabase Storage.\n\nVeja o arquivo CONFIGURAR_STORAGE.md para instruções.';
+      } else if (error.message) {
+        errorMessage = `❌ ${error.message}`;
+      }
+
+      alert(errorMessage);
     } finally {
       setUploading(false);
+      // Limpar o input para permitir re-upload do mesmo arquivo
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -182,8 +233,8 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
             <div
               onClick={() => !uploading && fileInputRef.current?.click()}
               className={`relative h-64 rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center cursor-pointer overflow-hidden ${formData.image
-                  ? 'border-green-500 bg-green-50/5'
-                  : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-gray-100'
+                ? 'border-green-500 bg-green-50/5'
+                : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-gray-100'
                 }`}
             >
               {formData.image ? (
@@ -214,8 +265,12 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
                       <div className="bg-blue-100 p-5 rounded-full inline-block mb-4">
                         <Upload className="h-10 w-10 text-blue-600" />
                       </div>
-                      <p className="text-lg text-gray-700 font-bold">Clique para selecionar a foto</p>
-                      <p className="text-sm text-gray-400 mt-2">A imagem será salva no Supabase Storage</p>
+                      <p className="text-lg text-gray-700 font-bold">📸 Clique para selecionar a foto</p>
+                      <p className="text-sm text-gray-500 mt-2">Envio direto para Supabase Storage</p>
+                      <div className="mt-3 space-y-1">
+                        <p className="text-xs text-gray-400">✓ JPG, PNG, GIF ou WebP</p>
+                        <p className="text-xs text-gray-400">✓ Tamanho máximo: 5MB</p>
+                      </div>
                     </>
                   )}
                 </div>

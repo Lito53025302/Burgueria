@@ -203,6 +203,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       completedOrders,
       cancelledOrders,
       averageOrderValue: totalRevenue / (completedOrders || 1),
+      // Mantém os arrays de gráficos (mock data)
+      dailyRevenue: prev.dailyRevenue,
+      weeklyRevenue: prev.weeklyRevenue,
+      monthlyRevenue: prev.monthlyRevenue,
       topSellingItems: menuItems.sort((a, b) => b.soldCount - a.soldCount).slice(0, 5),
       recentOrders: orders.slice(0, 5)
     }));

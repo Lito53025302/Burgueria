@@ -1,3 +1,8 @@
+export interface Customization {
+  name: string;
+  price: number;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -8,6 +13,7 @@ export interface MenuItem {
   available: boolean;
   soldCount: number;
   createdAt: string;
+  customizations?: Customization[];
 }
 
 export interface Order {

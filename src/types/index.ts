@@ -1,13 +1,19 @@
+export interface CustomizationOption {
+  name: string;
+  price: number;
+}
+
 export interface BurgerItem {
   id: string;
   name: string;
   description: string;
   price: number;
   image: string;
-  category: 'signature' | 'classic' | 'veggie' | 'sides' | 'drinks';
+  category: string;
   ingredients: string[];
   calories?: number;
   spiceLevel?: 'mild' | 'medium' | 'hot';
+  customizations?: CustomizationOption[];
 }
 
 export interface CartItem extends BurgerItem {

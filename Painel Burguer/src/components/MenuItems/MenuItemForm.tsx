@@ -21,93 +21,86 @@ const categories = [
 ];
 
 export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFormProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    price: string;
+    image: string;
+    category: string;
+    available: boolean;
+    customizations: { name: string; price: number }[];
+  }>({
     name: '',
     description: '',
     price: '',
     image: '',
     category: categories[0],
-    available: true
+    available: true,
+    customizations: []
   });
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleAddCustomization = () => {
+    setFormData(prev => ({
+      ...prev,
+      customizations: [...prev.customizations, { name: '', price: 0 }]
+    }));
+  };
+
+  const handleRemoveCustomization = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      customizations: prev.customizations.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleCustomizationChange = (index: number, field: 'name' | 'price', value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      customizations: prev.customizations.map((c, i) =>
+        i === index ? { ...c, [field]: value } : c
+      )
+    }));
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // ... existing file upload code ...
     try {
       const file = event.target.files?.[0];
       if (!file) return;
 
-      // Validar tipo de arquivo
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
       if (!validTypes.includes(file.type)) {
         alert('❌ Tipo de arquivo inválido! Use apenas: JPEG, PNG, GIF ou WebP');
         return;
       }
 
-      // Validar tamanho (5MB máximo)
-      const maxSize = 5 * 1024 * 1024; // 5MB em bytes
+      const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
         alert('❌ Arquivo muito grande! Tamanho máximo: 5MB');
         return;
       }
 
-      console.log('📤 Iniciando upload...', {
-        nome: file.name,
-        tipo: file.type,
-        tamanho: `${(file.size / 1024).toFixed(2)} KB`
-      });
-
       setUploading(true);
-
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      console.log('📂 Enviando para bucket "products":', filePath);
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('products')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+        .upload(filePath, file, { cacheControl: '3600', upsert: false });
 
-      if (uploadError) {
-        console.error('❌ Erro no upload:', uploadError);
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
 
-      console.log('✅ Upload concluído:', uploadData);
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('products')
-        .getPublicUrl(filePath);
-
-      console.log('🔗 URL pública gerada:', publicUrl);
-
+      const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(filePath);
       setFormData({ ...formData, image: publicUrl });
       alert('✅ Imagem enviada com sucesso!');
-
     } catch (error: any) {
-      console.error('❌ Erro completo:', error);
-
-      let errorMessage = 'Erro ao fazer upload da imagem';
-
-      if (error.message?.includes('new row violates row-level security')) {
-        errorMessage = '🔒 Erro de permissão! O bucket "products" precisa ter políticas de acesso configuradas.\n\nVeja o arquivo CONFIGURAR_STORAGE.md para instruções.';
-      } else if (error.message?.includes('Bucket not found')) {
-        errorMessage = '📦 Bucket "products" não encontrado!\n\nVocê precisa criar o bucket no Supabase Storage.\n\nVeja o arquivo CONFIGURAR_STORAGE.md para instruções.';
-      } else if (error.message) {
-        errorMessage = `❌ ${error.message}`;
-      }
-
-      alert(errorMessage);
+      alert(`❌ Erro: ${error.message}`);
     } finally {
       setUploading(false);
-      // Limpar o input para permitir re-upload do mesmo arquivo
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -119,7 +112,8 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
         price: editItem.price.toString(),
         image: editItem.image,
         category: editItem.category,
-        available: editItem.available
+        available: editItem.available,
+        customizations: editItem.customizations || []
       });
     } else {
       setFormData({
@@ -128,7 +122,8 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
         price: '',
         image: '',
         category: categories[0],
-        available: true
+        available: true,
+        customizations: []
       });
     }
   }, [editItem, isOpen]);
@@ -142,7 +137,8 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
       price: parseFloat(formData.price),
       image: formData.image || 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=400',
       category: formData.category,
-      available: formData.available
+      available: formData.available,
+      customizations: formData.customizations.filter(c => c.name.trim() !== '')
     });
 
     onClose();
@@ -267,10 +263,6 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
                       </div>
                       <p className="text-lg text-gray-700 font-bold">📸 Clique para selecionar a foto</p>
                       <p className="text-sm text-gray-500 mt-2">Envio direto para Supabase Storage</p>
-                      <div className="mt-3 space-y-1">
-                        <p className="text-xs text-gray-400">✓ JPG, PNG, GIF ou WebP</p>
-                        <p className="text-xs text-gray-400">✓ Tamanho máximo: 5MB</p>
-                      </div>
                     </>
                   )}
                 </div>
@@ -284,6 +276,58 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
               accept="image/*"
               className="hidden"
             />
+          </div>
+
+          {/* Complementos (Customizations) */}
+          <div className="space-y-4 border-t border-gray-100 pt-4">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-bold text-gray-900">
+                Complementos (Opcional)
+              </label>
+              <button
+                type="button"
+                onClick={handleAddCustomization}
+                className="text-sm text-blue-600 font-semibold hover:text-blue-700 flex items-center gap-1"
+              >
+                + Adicionar Complemento
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {formData.customizations.map((customization, index) => (
+                <div key={index} className="flex gap-3 items-start animate-fade-in">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder="Ex: Queijo Extra"
+                      value={customization.name}
+                      onChange={(e) => handleCustomizationChange(index, 'name', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="w-32">
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Preço R$"
+                      value={customization.price}
+                      onChange={(e) => handleCustomizationChange(index, 'price', parseFloat(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCustomization(index)}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+              {formData.customizations.length === 0 && (
+                <p className="text-sm text-gray-500 italic">Nenhum complemento adicionado.</p>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center">
@@ -311,7 +355,7 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
               type="submit"
               className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
             >
-              {editItem ? 'Atualizar' : 'Adicionar'} Item
+              {editItem ? 'Atualizar Item' : 'Criar Item'}
             </button>
           </div>
         </form>

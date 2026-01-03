@@ -12,8 +12,14 @@ const BurgerModal = ({ burger, onClose, onAddToCart }: BurgerModalProps) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedCustomizations, setSelectedCustomizations] = useState<string[]>([]);
 
-  // Opções de personalização baseadas na categoria
+  // Opções de personalização baseadas na categoria ou no que vem do banco de dados
   const getCustomizationOptions = () => {
+    // Se o item já tiver customizações cadastradas no banco de dados, use apenas elas
+    if (burger.customizations && burger.customizations.length > 0) {
+      return burger.customizations;
+    }
+
+    // Fallback: se não tiver nada no banco, usa a lógica antiga do sistema
     const baseOptions = [
       { name: 'Maionese Extra', price: 2.00 },
       { name: 'Ketchup Extra', price: 1.50 },
@@ -22,7 +28,10 @@ const BurgerModal = ({ burger, onClose, onAddToCart }: BurgerModalProps) => {
       { name: 'Molho Picante', price: 2.00 },
     ];
 
-    if (burger.category === 'signature' || burger.category === 'classic') {
+    if (burger.category.toLowerCase().includes('hamb') ||
+      burger.category.toLowerCase().includes('burguer') ||
+      burger.category === 'signature' ||
+      burger.category === 'classic') {
       return [
         ...baseOptions,
         { name: 'Bacon Extra', price: 8.00 },
@@ -35,7 +44,8 @@ const BurgerModal = ({ burger, onClose, onAddToCart }: BurgerModalProps) => {
       ];
     }
 
-    if (burger.category === 'veggie') {
+    if (burger.category.toLowerCase().includes('veggie') ||
+      burger.category.toLowerCase().includes('vege')) {
       return [
         ...baseOptions.filter(opt => !opt.name.includes('Barbecue')),
         { name: 'Abacate Extra', price: 6.00 },
@@ -46,7 +56,9 @@ const BurgerModal = ({ burger, onClose, onAddToCart }: BurgerModalProps) => {
       ];
     }
 
-    if (burger.category === 'sides') {
+    if (burger.category.toLowerCase().includes('side') ||
+      burger.category.toLowerCase().includes('acompanhamento') ||
+      burger.category.toLowerCase().includes('petisco')) {
       return [
         { name: 'Queijo Cheddar', price: 4.00 },
         { name: 'Bacon Bits', price: 6.00 },
@@ -182,8 +194,8 @@ const BurgerModal = ({ burger, onClose, onAddToCart }: BurgerModalProps) => {
                     key={index}
                     onClick={() => toggleCustomization(option.name)}
                     className={`p-4 rounded-xl text-left transition-all duration-300 ${selectedCustomizations.includes(option.name)
-                        ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
-                        : 'bg-gray-800/30 border-gray-700 text-gray-300 hover:border-yellow-500/50'
+                      ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
+                      : 'bg-gray-800/30 border-gray-700 text-gray-300 hover:border-yellow-500/50'
                       } border`}
                   >
                     <div className="font-medium mb-1">{option.name}</div>

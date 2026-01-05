@@ -98,11 +98,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ...item,
           sold_count: 0
         }])
-        .select();
+        .select('id, name, description, price, image, category, available, sold_count, created_at, customizations')
+        .single();
 
       if (error) throw error;
       if (data) {
-        setMenuItems(prev => [...prev, data[0] as MenuItem]);
+        setMenuItems(prev => [...prev, data as MenuItem]);
       }
     } catch (error) {
       logger.error('Erro ao adicionar item ao cardápio', error);

@@ -26,7 +26,7 @@ export function CustomizationSelector({ selectedCustomizations, onCustomizations
 
     const fetchAvailableCustomizations = async () => {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from('available_customizations')
                 .select('*')
                 .order('category', { ascending: true })
@@ -65,7 +65,7 @@ export function CustomizationSelector({ selectedCustomizations, onCustomizations
         }
 
         try {
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from('available_customizations')
                 .insert([{
                     name: newCustomization.name,
@@ -78,12 +78,12 @@ export function CustomizationSelector({ selectedCustomizations, onCustomizations
             if (error) throw error;
 
             // Adicionar à lista local
-            setAvailableCustomizations(prev => [...prev, data]);
+            setAvailableCustomizations(prev => [...prev, data as CustomizationOption]);
 
             // Adicionar à seleção atual
             onCustomizationsChange([
                 ...selectedCustomizations,
-                { name: data.name, price: data.price.toString() }
+                { name: (data as any).name, price: (data as any).price.toString() }
             ]);
 
             // Limpar formulário
@@ -179,8 +179,8 @@ export function CustomizationSelector({ selectedCustomizations, onCustomizations
                                         type="button"
                                         onClick={() => handleToggleCustomization(customization)}
                                         className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${isSelected
-                                                ? 'border-green-500 bg-green-50'
-                                                : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50'
+                                            ? 'border-green-500 bg-green-50'
+                                            : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">

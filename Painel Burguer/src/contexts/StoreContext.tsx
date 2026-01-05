@@ -98,7 +98,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ...item,
           sold_count: 0
         }])
-        .select('id, name, description, price, image, category, available, sold_count, created_at, customizations')
+        .select('id, name, description, price, image, category, available, sold_count, created_at, customizations, spice_level, prep_time_min')
         .single();
 
       if (error) throw error;

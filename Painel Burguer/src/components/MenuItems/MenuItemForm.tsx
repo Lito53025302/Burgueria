@@ -30,6 +30,8 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
     category: string;
     available: boolean;
     customizations: { name: string; price: string }[];
+    spiceLevel: 'none' | 'suave' | 'medio' | 'forte' | 'extra_forte';
+    prepTimeMin: string;
   }>({
     name: '',
     description: '',
@@ -37,7 +39,9 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
     image: '',
     category: categories[0],
     available: true,
-    customizations: []
+    customizations: [],
+    spiceLevel: 'none',
+    prepTimeMin: ''
   });
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +98,9 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
         customizations: (editItem.customizations || []).map(c => ({
           name: c.name,
           price: c.price.toString()
-        }))
+        })),
+        spiceLevel: editItem.spiceLevel || 'none',
+        prepTimeMin: editItem.prepTimeMin?.toString() || ''
       });
     } else {
       setFormData({
@@ -104,7 +110,9 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
         image: '',
         category: categories[0],
         available: true,
-        customizations: []
+        customizations: [],
+        spiceLevel: 'none',
+        prepTimeMin: ''
       });
     }
   }, [editItem, isOpen]);
@@ -121,7 +129,9 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
       available: formData.available,
       customizations: formData.customizations
         .filter(c => c.name.trim() !== '')
-        .map(c => ({ name: c.name, price: parseFloat(c.price) || 0 }))
+        .map(c => ({ name: c.name, price: parseFloat(c.price) || 0 })),
+      spiceLevel: formData.spiceLevel,
+      prepTimeMin: formData.prepTimeMin ? parseInt(formData.prepTimeMin) : undefined
     });
 
     onClose();
@@ -203,6 +213,57 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
+          </div>
+
+          {/* Nível de Picância e Tempo de Preparo */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Nível de Picância */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nível de Picância
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'none', label: 'Sem', emoji: '🚫', color: 'gray' },
+                  { value: 'suave', label: 'Suave', emoji: '🌶️', color: 'green' },
+                  { value: 'medio', label: 'Médio', emoji: '🌶️🌶️', color: 'yellow' },
+                  { value: 'forte', label: 'Forte', emoji: '🌶️🌶️🌶️', color: 'orange' },
+                  { value: 'extra_forte', label: 'Extra', emoji: '🌶️🌶️🌶️🔥', color: 'red' }
+                ].map((level) => (
+                  <button
+                    key={level.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, spiceLevel: level.value as any })}
+                    className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${formData.spiceLevel === level.value
+                        ? `border-${level.color}-500 bg-${level.color}-50 shadow-md`
+                        : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                  >
+                    <span className="text-2xl">{level.emoji}</span>
+                    <span className="text-xs font-medium">{level.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tempo de Preparo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tempo de Preparo (minutos)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Ex: 15"
+                  value={formData.prepTimeMin}
+                  onChange={(e) => setFormData({ ...formData, prepTimeMin: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <span className="text-sm text-gray-500">min</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Deixe vazio se não se aplica</p>
+            </div>
           </div>
 
           <div>

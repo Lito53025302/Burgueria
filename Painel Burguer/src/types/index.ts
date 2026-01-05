@@ -14,6 +14,8 @@ export interface MenuItem {
   soldCount: number;
   createdAt: string;
   customizations?: Customization[];
+  spiceLevel?: 'none' | 'suave' | 'medio' | 'forte' | 'extra_forte';
+  prepTimeMin?: number;
 }
 
 export interface Order {

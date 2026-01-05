@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Upload, Loader2 } from 'lucide-react';
 import { MenuItem } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { CustomizationSelector } from './CustomizationSelector';
 
 interface MenuItemFormProps {
   isOpen: boolean;
@@ -40,29 +41,6 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
   });
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleAddCustomization = () => {
-    setFormData(prev => ({
-      ...prev,
-      customizations: [...prev.customizations, { name: '', price: '' }]
-    }));
-  };
-
-  const handleRemoveCustomization = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      customizations: prev.customizations.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleCustomizationChange = (index: number, field: 'name' | 'price', value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      customizations: prev.customizations.map((c, i) =>
-        i === index ? { ...c, [field]: value } : c
-      )
-    }));
-  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     // ... existing file upload code ...
@@ -284,56 +262,11 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
           </div>
 
           {/* Complementos (Customizations) */}
-          <div className="space-y-4 border-t border-gray-100 pt-4">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-bold text-gray-900">
-                Complementos (Opcional)
-              </label>
-              <button
-                type="button"
-                onClick={handleAddCustomization}
-                className="text-sm text-blue-600 font-semibold hover:text-blue-700 flex items-center gap-1"
-              >
-                + Adicionar Complemento
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {formData.customizations.map((customization, index) => (
-                <div key={index} className="flex gap-3 items-start animate-fade-in">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      placeholder="Ex: Queijo Extra"
-                      value={customization.name}
-                      onChange={(e) => handleCustomizationChange(index, 'name', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="w-32">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="Preço R$"
-                      value={customization.price}
-                      onChange={(e) => handleCustomizationChange(index, 'price', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveCustomization(index)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-              ))}
-              {formData.customizations.length === 0 && (
-                <p className="text-sm text-gray-500 italic">Nenhum complemento adicionado.</p>
-              )}
-            </div>
+          <div className="border-t border-gray-100 pt-4">
+            <CustomizationSelector
+              selectedCustomizations={formData.customizations}
+              onCustomizationsChange={(customizations) => setFormData({ ...formData, customizations })}
+            />
           </div>
 
           <div className="flex items-center">

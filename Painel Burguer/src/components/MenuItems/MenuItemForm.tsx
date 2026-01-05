@@ -28,7 +28,7 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
     image: string;
     category: string;
     available: boolean;
-    customizations: { name: string; price: number }[];
+    customizations: { name: string; price: string }[];
   }>({
     name: '',
     description: '',
@@ -44,7 +44,7 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
   const handleAddCustomization = () => {
     setFormData(prev => ({
       ...prev,
-      customizations: [...prev.customizations, { name: '', price: 0 }]
+      customizations: [...prev.customizations, { name: '', price: '' }]
     }));
   };
 
@@ -113,7 +113,10 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
         image: editItem.image,
         category: editItem.category,
         available: editItem.available,
-        customizations: editItem.customizations || []
+        customizations: (editItem.customizations || []).map(c => ({
+          name: c.name,
+          price: c.price.toString()
+        }))
       });
     } else {
       setFormData({
@@ -138,7 +141,9 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
       image: formData.image || 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=400',
       category: formData.category,
       available: formData.available,
-      customizations: formData.customizations.filter(c => c.name.trim() !== '')
+      customizations: formData.customizations
+        .filter(c => c.name.trim() !== '')
+        .map(c => ({ name: c.name, price: parseFloat(c.price) || 0 }))
     });
 
     onClose();
@@ -309,9 +314,10 @@ export function MenuItemForm({ isOpen, onClose, onSubmit, editItem }: MenuItemFo
                     <input
                       type="number"
                       step="0.01"
+                      min="0"
                       placeholder="Preço R$"
                       value={customization.price}
-                      onChange={(e) => handleCustomizationChange(index, 'price', parseFloat(e.target.value))}
+                      onChange={(e) => handleCustomizationChange(index, 'price', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>

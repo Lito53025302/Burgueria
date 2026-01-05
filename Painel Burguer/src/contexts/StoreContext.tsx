@@ -92,12 +92,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const addMenuItem = async (item: Omit<MenuItem, 'id' | 'createdAt' | 'soldCount'>) => {
     try {
+      // Converter nomes de campos para snake_case
+      const dbItem = {
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        image: item.image,
+        category: item.category,
+        available: item.available,
+        customizations: item.customizations,
+        spice_level: item.spiceLevel || 'none',
+        prep_time_min: item.prepTimeMin,
+        sold_count: 0
+      };
+
       const { data, error } = await supabase
         .from('menu_items')
-        .insert([{
-          ...item,
-          sold_count: 0
-        }])
+        .insert([dbItem])
         .select('id, name, description, price, image, category, available, sold_count, created_at, customizations, spice_level, prep_time_min')
         .single();
 
@@ -113,9 +124,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const updateMenuItem = async (id: string, updates: Partial<MenuItem>) => {
     try {
+      // Converter nomes de campos para snake_case
+      const dbUpdates: any = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.price !== undefined) dbUpdates.price = updates.price;
+      if (updates.image !== undefined) dbUpdates.image = updates.image;
+      if (updates.category !== undefined) dbUpdates.category = updates.category;
+      if (updates.available !== undefined) dbUpdates.available = updates.available;
+      if (updates.customizations !== undefined) dbUpdates.customizations = updates.customizations;
+      if (updates.spiceLevel !== undefined) dbUpdates.spice_level = updates.spiceLevel;
+      if (updates.prepTimeMin !== undefined) dbUpdates.prep_time_min = updates.prepTimeMin;
+
       const { error } = await supabase
         .from('menu_items')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', id);
 
       if (error) throw error;

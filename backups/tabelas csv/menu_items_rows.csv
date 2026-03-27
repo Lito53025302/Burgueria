@@ -1,0 +1,7 @@
+id,name,description,price,image,category,available,sold_count,created_at,customizations,spice_level,prep_time_min
+5b3876e0-a138-40d0-a97e-db50551729d1,Napolitana,"Massa fina e macia feita de farinha de trigo, água, sal e fermento natural.
+Molho de tomate fresco preparado com tomates maduros, levemente temperado.
+Queijo muçarela de búfala derretido e cremoso.
+Folhas de manjericão fresco, que dão aroma e sabor característicos.
+Azeite de oliva extra virgem, regado por cima para realçar os sabores.",39.90,https://yoprdgfhznxdrypinmkx.supabase.co/storage/v1/object/public/products/1767312326181-9c0y44.jpg,Pizza,true,0,2026-01-02 00:05:32.545136+00,[],none,
+bf0a0347-6e13-4aeb-9750-ea59a1c266fe,hthtrh,trhtrnnnt,30.00,https://yoprdgfhznxdrypinmkx.supabase.co/storage/v1/object/public/products/1767651305963-5v72yi.jpg,Hambúrguer,true,0,2026-01-05 22:15:09.336829+00,"[{""name"":""Bacon Extra"",""price"":5},{""name"":""Cebola Caramelizada"",""price"":3},{""name"":""Ovo"",""price"":2},{""name"":""Queijo Extra"",""price"":4},{""name"":""MAIONESE DEFUMADA BRANCA"",""price"":5},{""name"":""maionese sache"",""price"":0.5},{""name"":""Maionese temperada"",""price"":3},{""name"":""Mostarda"",""price"":0.5}]",suave,30

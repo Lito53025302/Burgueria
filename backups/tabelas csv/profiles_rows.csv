@@ -1,0 +1,4 @@
+id,email,name,phone,address,updated_at,created_at,role
+20895fac-6a90-4d0d-96fd-2ecbc8f55661,litogarinho@gmail.com,Paulo Camilo,11915276453,"{""city"":""São Paulo"",""number"":""60"",""street"":""Rua Gervásio Gonçalves"",""zipCode"":""05549-300"",""complement"":"""",""neighborhood"":""Jardim das Esmeraldas""}",2025-12-31 01:15:27.272673+00,2025-12-24 21:57:23.911872+00,admin
+29d507f6-0a42-4f0b-b346-379d51fcc0cf,admin@burgueria.com,Administrador,,,2026-01-01 22:13:39.570334+00,2025-12-24 02:19:47.640737+00,admin
+3cb62365-43cd-44eb-8833-ef100e1b2b3b,paulo_lito12@hotmail.com,Paulo,,,2026-01-01 22:13:39.570334+00,2025-12-24 18:34:45.889382+00,admin

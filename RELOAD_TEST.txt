@@ -1,0 +1,2 @@
+Este arquivo foi criado para testar se o servidor está recarregando.
+Se você vê este arquivo, o sistema está funcionando.
